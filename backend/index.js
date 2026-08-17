@@ -36,7 +36,9 @@ app.use(express.json());
 app.use(express.static(uploadsDir));
 
 app.get("/api/health", (req, res) => {
-  res.status(200).json({ success: true, message: "Server is running" });
+  // Keep the cron response empty so monitoring services never reject it for
+  // producing too much output. Any 2xx status is a successful health check.
+  res.status(204).end();
 });
 
 app.use("/api/auth", authRouter);
