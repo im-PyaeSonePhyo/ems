@@ -1,21 +1,24 @@
 import express from "express";
-import authMiddleware from "../middleware/authMiddleware.js";
-import { addLeave, getLeave, getLeaves, getLeaveDetails, updateLeaveStatus, updateLeave, deleteLeave } from "../controllers/leaveController.js";
+import authMiddleware, { requireRole } from "../middleware/authMiddleware.js";
+import {
+  addLeave,
+  getLeave,
+  getLeaves,
+  getLeaveDetails,
+  updateLeaveStatus,
+  updateLeave,
+  deleteLeave,
+} from "../controllers/leaveController.js";
 
 const router = express.Router();
 
-router.post("/add", authMiddleware, addLeave);
-
-router.get("/details/:id", authMiddleware, getLeaveDetails);
-
-router.get("/:id", authMiddleware, getLeave);
-
-router.get("/", authMiddleware, getLeaves);
-
-router.put("/details/:id", authMiddleware, updateLeaveStatus);
-
-router.put("/:id", authMiddleware, updateLeave);
-
-router.delete("/:id", authMiddleware, deleteLeave);
+router.use(authMiddleware);
+router.post("/add", requireRole("employee"), addLeave);
+router.get("/details/:id", getLeaveDetails);
+router.get("/", requireRole("admin"), getLeaves);
+router.get("/:id", getLeave);
+router.put("/details/:id", requireRole("admin"), updateLeaveStatus);
+router.put("/:id", updateLeave);
+router.delete("/:id", deleteLeave);
 
 export default router;

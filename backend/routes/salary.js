@@ -1,23 +1,22 @@
 import express from "express";
-import authMiddleware from "../middleware/authMiddleware.js";
-import { addSalary, getSalary, getSalaryCollections, getSalariesByPayDate, updateSalaryByPayDate, deleteSalariesByPayDate } from "../controllers/salaryController.js";
+import authMiddleware, { requireRole } from "../middleware/authMiddleware.js";
+import {
+  addSalary,
+  getSalary,
+  getSalaryCollections,
+  getSalariesByPayDate,
+  updateSalaryByPayDate,
+  deleteSalariesByPayDate,
+} from "../controllers/salaryController.js";
 
 const router = express.Router();
 
-router.post("/add", authMiddleware, addSalary);
-
-// GET salary records for specific employee
-router.get("/employee/:id", authMiddleware, getSalary);
-
-// PUT to update salary record by pay date
-router.put("/update/:payDate", updateSalaryByPayDate);
-
-// GET salary collections (monthly group)
-router.get("/salaryCollections", authMiddleware, getSalaryCollections);
-
-// GET salary by pay date
-router.get("/collection/:payDate", authMiddleware, getSalariesByPayDate);
-
-router.delete("/delete/:payDate", authMiddleware, deleteSalariesByPayDate)
+router.use(authMiddleware);
+router.post("/add", requireRole("admin"), addSalary);
+router.get("/employee/:id", getSalary);
+router.put("/update/:payDate", requireRole("admin"), updateSalaryByPayDate);
+router.get("/salaryCollections", requireRole("admin"), getSalaryCollections);
+router.get("/collection/:payDate", requireRole("admin"), getSalariesByPayDate);
+router.delete("/delete/:payDate", requireRole("admin"), deleteSalariesByPayDate);
 
 export default router;

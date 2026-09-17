@@ -5,15 +5,14 @@ import {
   EMPLOYEE_TYPE,
   GENDER_OPTIONS,
   MARITAL_STATUS_OPTIONS,
-  ROLE_OPTIONS,
 } from "../constants/Constants";
 import PageLayout from "../layout/PageLayout";
-import { Input, Select } from "../common/Input";
+import { Input, MultiSelect, Select } from "../common/Input";
 import { Datepicker, FileInput } from "flowbite-react";
 import { CancelButton, SubmitButton } from "../common/Button";
 import { useNavigate } from "react-router-dom";
 import { employeeStore } from "../../stores/employee.store";
-import { Plus, Trash2 } from "lucide-react";
+import { CirclePlus, Trash2 } from "lucide-react";
 
 const AddEmployee = observer(() => {
   const {
@@ -25,6 +24,7 @@ const AddEmployee = observer(() => {
     errorMessage,
     createEmployeeId,
     handleChange,
+    handleDepartmentsChange,
     handleDateChange,
     handleDurationChange,
     handleSubmit,
@@ -138,10 +138,12 @@ const AddEmployee = observer(() => {
               </label>
               <div className="custom-datepicker">
                 <Datepicker
-                  value={formData.dob}
+                  value={formData.dob ?? null}
                   onChange={(date) => handleDateChange("dob", date)}
                   name="dob"
                   maxDate={maxDate}
+                  placeholder="Select Date of Birth"
+                  label=""
                 />
               </div>
               <span className="text-red-500 font-small">
@@ -252,15 +254,15 @@ const AddEmployee = observer(() => {
                         }}
                       >
                         <Trash2
-                          size={25}
+                          size={24}
                           className="text-red-800 hover:text-red-900 transition"
                         />
                       </button>
                       {idx === formData.phones.length - 1 && (
-                        <button type="button" onClick={addPhoneRow} className="bg-green-800 hover:bg-green-900 rounded-lg cursor-pointer">
-                          <Plus
-                            size={25}
-                            className="text-white transition"
+                        <button type="button" onClick={addPhoneRow} className="cursor-pointer">
+                          <CirclePlus
+                            size={24}
+                            className="text-green-800 hover:text-green-900 transition"
                           />
                         </button>
                       )}
@@ -294,9 +296,11 @@ const AddEmployee = observer(() => {
               </label>
               <div className="custom-datepicker">
                 <Datepicker
-                  value={formData.workStartDay}
+                  value={formData.workStartDay ?? null}
                   onChange={(date) => handleDateChange("workStartDay", date)}
                   name="workStartDay"
+                  placeholder="Select Work Start Day"
+                  label=""
                 />
               </div>
               <span className="text-red-500 font-small">
@@ -317,21 +321,12 @@ const AddEmployee = observer(() => {
                 min={0}
               />
             )}
-            <Select
-              name={"role"}
-              title={"Role"}
-              valueCheck={formData.role ?? ""}
-              options={ROLE_OPTIONS}
-              handleChange={handleChange}
-              required={true}
-              error={errorMessage?.role}
-            />
-            <Select
-              name={"department"}
+            <MultiSelect
+              name={"departments"}
               title={"Department"}
-              valueCheck={formData.department ?? ""}
+              values={formData.departments ?? []}
               options={departmentOptions}
-              handleChange={handleChange}
+              handleChange={handleDepartmentsChange}
               required={true}
               error={errorMessage?.department}
             />
@@ -366,11 +361,16 @@ const AddEmployee = observer(() => {
               </label>
               <FileInput
                 id="large-file-upload"
-                sizing="lg"
-                className="mt-1"
+                className="custom-file-input mt-1 text-base file:text-base"
                 name="image"
+                accept="image/*"
                 onChange={handleChange}
               />
+              {errorMessage?.image && (
+                <span className="text-red-500 font-small">
+                  {errorMessage.image}
+                </span>
+              )}
             </div>
 
             {/* leave types */}

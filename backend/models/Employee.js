@@ -19,8 +19,13 @@ const employeeSchema = new Schema({
   department: {
     type: Schema.Types.ObjectId,
     ref: "Department",
-    required: true,
   },
+  departments: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+    },
+  ],
   salary: { type: Number, default: 0 },
   annualLeave: { type: Number, default: 0 },
   casualLeave: { type: Number, default: 0 },

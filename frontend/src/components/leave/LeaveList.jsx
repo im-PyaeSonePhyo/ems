@@ -31,17 +31,19 @@ const LeaveList = observer(() => {
     setShowModal(true);
   };
 
-    const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (!selectedLeave) return;
-    if (selectedLeave) {
-      const success = deleteLeave(selectedLeave._id);
-      if (success) {
-        fetchLeaves(id);
-        setShowModal(false);
-        setSelectedLeave(null);
-      }
+    const success = await deleteLeave(selectedLeave._id);
+    if (success) {
+      await fetchLeaves(id);
+      setShowModal(false);
+      setSelectedLeave(null);
     }
   };
+
+  const leaveBlocked =
+    selectedLeave?.status === "Approved" ||
+    selectedLeave?.status === "Rejected";
 
   let TABLE_HEADER;
   if(user.role === "admin") {
@@ -58,7 +60,7 @@ const LeaveList = observer(() => {
     >
       {user.role === "employee" && (
         <div className="flex justify-end items-center mb-6">
-          <SubmitLink urlLink={"../add-leave"} name={"Add New Leave"} />
+          <SubmitLink urlLink={"../add-leave"} name={"Add Leave"} />
         </div>
       )}
       <Table
@@ -109,7 +111,6 @@ const LeaveList = observer(() => {
                     onClick={() => confirmDelete(item)}
                     name={"Delete"}
                     className={"bg-red-600 hover:bg-red-700"}
-                    disabled={item.status === "Approved" || item.status === "Rejected"}
                   />
                 </div>
               </td>
@@ -119,9 +120,42 @@ const LeaveList = observer(() => {
       />
       <ConfirmDeleteModal
         show={showModal}
-        onClose={() => setShowModal(false)}
+        variant={leaveBlocked ? "blocked" : "confirm"}
+        entityLabel="Leave"
+        title={leaveBlocked ? "Cannot Delete Leave" : "Delete Leave?"}
+        description={
+          leaveBlocked ? (
+            <>
+              <span className="font-semibold text-white">
+                {selectedLeave?.leaveType || "This leave"}
+              </span>{" "}
+              cannot be deleted because it has already been{" "}
+              <span className="font-semibold text-white">
+                {selectedLeave?.status}
+              </span>
+              .
+            </>
+          ) : (
+            <>
+              Are you sure you want to delete this{" "}
+              <span className="font-semibold text-white">
+                {selectedLeave?.leaveType || "leave"}
+              </span>{" "}
+              request?
+            </>
+          )
+        }
+        hint={
+          leaveBlocked
+            ? "Only pending leave requests can be deleted."
+            : "This cannot be undone."
+        }
+        confirmLabel="Delete Leave"
+        onClose={() => {
+          setShowModal(false);
+          setSelectedLeave(null);
+        }}
         onConfirm={handleDeleteConfirmed}
-        itemName={selectedLeave?.leaveType}
       />
     </PageLayout>
   );

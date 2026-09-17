@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { departmentStore } from "../../stores/department.store";
 import PageLayout from "../../components/layout/PageLayout";
 import ErrorMessage from "../../components/common/ErrorMessage";
-import Loading from "../common/Loading";
+import { FormSkeleton } from "../common/Skeleton";
 import { Input, Textarea } from "../common/Input";
 import { CancelButton, SubmitButton } from "../common/Button";
 import { toast } from "react-toastify";
@@ -16,6 +16,7 @@ const DepartmentForm = observer(() => {
   const {
     loading,
     error,
+    department,
     formData,
     errorMessage,
     handleChange,
@@ -25,6 +26,13 @@ const DepartmentForm = observer(() => {
     updateDepartment,
     resetForm,
   } = departmentStore;
+
+  const normalizeValue = (value) => String(value ?? "").trim();
+  const hasChanges =
+    !isEditMode ||
+    normalizeValue(formData.dep_name) !== normalizeValue(department?.dep_name) ||
+    normalizeValue(formData.description) !==
+      normalizeValue(department?.description);
 
   useEffect(() => {
     if (isEditMode) {
@@ -42,6 +50,11 @@ const DepartmentForm = observer(() => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isEditMode && !hasChanges) {
+      toast.info("No changes to update.");
+      return;
+    }
+
     validateForm(formData);
     if (Object.keys(errorMessage).length > 0) return;
 
@@ -57,7 +70,13 @@ const DepartmentForm = observer(() => {
     }
   };
 
-  if (isEditMode && loading) return <Loading />;
+  if (isEditMode && loading) {
+    return (
+      <PageLayout title="Update Department" maxWidth={"max-w-3xl"}>
+        <FormSkeleton fields={2} columns={1} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout
@@ -90,13 +109,14 @@ const DepartmentForm = observer(() => {
         </form>
         <div className="text-end">
           <CancelButton
-            loading={loading}
+            isLoading={loading}
             onClick={() => {
               resetForm();
               navigate(-1);
             }}
           />
           <SubmitButton
+            disabled={isEditMode && !hasChanges}
             name={
               loading
                 ? isEditMode
@@ -106,7 +126,7 @@ const DepartmentForm = observer(() => {
                 ? "Update Department"
                 : "Add Department"
             }
-            loading={loading}
+            isLoading={loading}
             onClick={handleSubmit}
             className="bg-indigo-600 hover:bg-indigo-700 ml-5"
           />

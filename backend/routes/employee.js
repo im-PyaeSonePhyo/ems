@@ -1,23 +1,27 @@
-
 import express from "express";
-import authMiddleware from "../middleware/authMiddleware.js";
+import authMiddleware, { requireRole } from "../middleware/authMiddleware.js";
 import {
   getEmployees,
   addEmployee,
-  upload,
+  uploadImage,
   getEmployee,
   updateEmployee,
+  updateProfileImage,
   fetchEmployeesByDepId,
   deleteEmployee,
 } from "../controllers/employeeController.js";
 import Phone from "../models/Phone.js";
+import { forbidden, isAdmin, isSelf } from "../utils/access.js";
 
 const router = express.Router();
 
+router.use(authMiddleware);
 
-// Phone endpoints
-router.get("/:id/phones", authMiddleware, async (req, res) => {
+router.get("/:id/phones", async (req, res) => {
   try {
+    if (!isAdmin(req) && !isSelf(req, req.params.id)) {
+      return forbidden(res);
+    }
     const phones = await Phone.find({ userId: req.params.id });
     res.json({ success: true, phones });
   } catch (err) {
@@ -25,7 +29,7 @@ router.get("/:id/phones", authMiddleware, async (req, res) => {
   }
 });
 
-router.get("/phone/:phoneId", authMiddleware, async (req, res) => {
+router.get("/phone/:phoneId", requireRole("admin"), async (req, res) => {
   try {
     const phone = await Phone.findById(req.params.phoneId);
     res.json({ success: true, phone });
@@ -34,11 +38,12 @@ router.get("/phone/:phoneId", authMiddleware, async (req, res) => {
   }
 });
 
-router.get("/", authMiddleware, getEmployees);
-router.post("/add", authMiddleware, upload.single("image"), addEmployee);
-router.get("/:id", authMiddleware, getEmployee);
-router.put('/:id', upload.single('image'), updateEmployee);
-router.get("/department/:id", authMiddleware, fetchEmployeesByDepId);
-router.delete("/:id", authMiddleware, deleteEmployee);
+router.get("/", requireRole("admin"), getEmployees);
+router.post("/add", requireRole("admin"), uploadImage, addEmployee);
+router.put("/profile-image", requireRole("employee"), uploadImage, updateProfileImage);
+router.get("/department/:id", requireRole("admin"), fetchEmployeesByDepId);
+router.get("/:id", getEmployee);
+router.put("/:id", requireRole("admin"), uploadImage, updateEmployee);
+router.delete("/:id", requireRole("admin"), deleteEmployee);
 
 export default router;

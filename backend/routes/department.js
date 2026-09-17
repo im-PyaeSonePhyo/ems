@@ -1,5 +1,5 @@
 import express from "express";
-import authMiddleware from "../middleware/authMiddleware.js";
+import authMiddleware, { requireRole } from "../middleware/authMiddleware.js";
 import {
   addDepartment,
   getDepartments,
@@ -10,10 +10,11 @@ import {
 
 const router = express.Router();
 
-router.get("/", authMiddleware, getDepartments);
-router.post("/add", authMiddleware, addDepartment);
-router.get("/:id", authMiddleware, getDepartment);
-router.put("/:id", authMiddleware, updateDepartment);
-router.delete("/:id", authMiddleware, deleteDepartment);
+router.use(authMiddleware, requireRole("admin"));
+router.get("/", getDepartments);
+router.post("/add", addDepartment);
+router.get("/:id", getDepartment);
+router.put("/:id", updateDepartment);
+router.delete("/:id", deleteDepartment);
 
 export default router;

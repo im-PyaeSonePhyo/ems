@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { toast } from "react-toastify";
 
 class LeaveStore {
+  allLeaves = [];
   leaves = [];
   leave = "";
   userId = "";
@@ -66,17 +67,20 @@ class LeaveStore {
     }
   };
 
-  filteredByStatus = async (status) => {
-    this.activeStatus = status;
-    await this.fetchAdminLeaves();
-    if (status === "All") {
-      this.leaves = [...this.leaves];
-    } else {
-      const data = this.leaves.filter((leave) =>
-        leave.status.toLowerCase().includes(status.toLowerCase())
-      );
-      this.leaves = data;
+  applyStatusFilter = () => {
+    if (this.activeStatus === "All") {
+      this.leaves = [...this.allLeaves];
+      return;
     }
+
+    this.leaves = this.allLeaves.filter(
+      (leave) => leave.status?.toLowerCase() === this.activeStatus.toLowerCase()
+    );
+  };
+
+  filteredByStatus = (status) => {
+    this.activeStatus = status;
+    this.applyStatusFilter();
   };
 
   changeStatus = (id, status, navigate) => {
@@ -158,14 +162,16 @@ class LeaveStore {
 
       runInAction(() => {
         if (response.data.success) {
-          this.leaves = response.data.leaves;
-          this.loading = false;
+          this.allLeaves = response.data.leaves || [];
+          this.applyStatusFilter();
         } else {
           this.error = response.data.error || "Failed to load admin leaves";
         }
+        this.loading = false;
       });
     } catch (error) {
       runInAction(() => {
+        this.loading = false;
         this.error = error?.response?.data?.error || "Server error";
       });
     }
@@ -355,6 +361,7 @@ class LeaveStore {
 
       runInAction(() => {
         if (response.data.success) {
+          this.allLeaves = this.allLeaves.filter((leave) => leave._id !== id);
           this.leaves = this.leaves.filter((leave) => leave._id !== id);
           toast.success(response.data.message)
         } else {

@@ -21,7 +21,6 @@ const addSalary = async (req, res) => {
         const {
           employeeId,
           kumoCareAllowance = 0,
-          sgdAllowance = 0,
           overtime = 0,
           birthdayBonus = 0,
           yearEndBonus = 0,
@@ -40,18 +39,8 @@ const addSalary = async (req, res) => {
         }
         const basicSalary = employee.salary;
 
-        let salaryComponent;
-
-        if (sgdAllowance > 0) {
-          salaryComponent = parseFloat(
-            ((basicSalary || 0) * (sgdAllowance || 1)) / 2000
-          );
-        } else {
-          salaryComponent = basicSalary;
-        }
-
         const revenueTotal =
-          salaryComponent +
+          parseFloat(basicSalary || 0) +
           parseFloat(kumoCareAllowance || 0) +
           parseFloat(overtime || 0) +
           parseFloat(birthdayBonus || 0) +
@@ -68,7 +57,6 @@ const addSalary = async (req, res) => {
           basicSalary,
           employeeId,
           kumoCareAllowance,
-          sgdAllowance,
           overtime,
           birthdayBonus,
           yearEndBonus,
@@ -82,6 +70,26 @@ const addSalary = async (req, res) => {
         };
       })
     );
+
+    const payDateToSave = salaryDocs[0]?.payDate;
+    if (payDateToSave) {
+      const startOfDay = new Date(payDateToSave);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(payDateToSave);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      const alreadyExists = await Salary.exists({
+        payDate: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      if (alreadyExists) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Salary for this pay date already exists. Please edit the existing record.",
+        });
+      }
+    }
 
     await Salary.insertMany(salaryDocs);
     return res.status(200).json({ success: true });
@@ -116,7 +124,6 @@ const updateSalaryByPayDate = async (req, res) => {
       const {
         employeeId,
         kumoCareAllowance = 0,
-        sgdAllowance = 0,
         overtime = 0,
         birthdayBonus = 0,
         yearEndBonus = 0,
@@ -134,18 +141,8 @@ const updateSalaryByPayDate = async (req, res) => {
 
       const basicSalary = employee.salary;
 
-      let salaryComponent;
-
-        if (sgdAllowance > 0) {
-          salaryComponent = parseFloat(
-            ((basicSalary || 0) * (sgdAllowance || 1)) / 2000
-          );
-        } else {
-          salaryComponent = basicSalary;
-        }
-
       const revenueTotal =
-        salaryComponent +
+        parseFloat(basicSalary || 0) +
         parseFloat(kumoCareAllowance) +
         parseFloat(overtime) +
         parseFloat(birthdayBonus) +
@@ -164,7 +161,6 @@ const updateSalaryByPayDate = async (req, res) => {
           employeeId,
           basicSalary,
           kumoCareAllowance,
-          sgdAllowance,
           overtime,
           birthdayBonus,
           yearEndBonus,
@@ -195,11 +191,26 @@ const updateSalaryByPayDate = async (req, res) => {
 const getSalary = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (req.user.role !== "admin") {
+      const ownEmployee = await Employee.findOne({ userId: req.user._id });
+      const allowed =
+        String(req.user._id) === String(id) ||
+        (ownEmployee && String(ownEmployee._id) === String(id));
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: "You can only view your own salary",
+        });
+      }
+    }
+
     let salary = [];
     salary = await Salary.find({ employeeId: id }).populate({
       path: "employeeId",
       populate: [
         { path: "department", select: "dep_name" },
+        { path: "departments", select: "dep_name" },
         { path: "userId", select: "name" },
       ],
     });
@@ -210,6 +221,7 @@ const getSalary = async (req, res) => {
           path: "employeeId",
           populate: [
             { path: "department", select: "dep_name" },
+            { path: "departments", select: "dep_name" },
             { path: "userId", select: "name" },
           ],
         });
@@ -228,13 +240,15 @@ const getSalaryCollections = async (req, res) => {
     const salaryCollections = await Salary.aggregate([
       {
         $group: {
-          _id: { $substr: ["$payDate", 0, 10] }, // group by "YYYY-MM-DD"
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$payDate", timezone: "UTC" },
+          },
           totalEmployees: { $sum: 1 },
           totalNetSalary: { $sum: "$netSalary" },
         },
       },
       {
-        $sort: { _id: -1 }, // sort by newest payDate
+        $sort: { _id: -1 },
       },
     ]);
 
@@ -257,11 +271,15 @@ const getSalariesByPayDate = async (req, res) => {
     endDate.setUTCHours(23, 59, 59, 999);
 
     const salaries = await Salary.find({
-      payDate: payDate,
+      payDate: {
+        $gte: startDate,
+        $lte: endDate,
+      },
     }).populate({
       path: "employeeId",
       populate: [
         { path: "department", select: "dep_name" },
+        { path: "departments", select: "dep_name" },
         { path: "userId", select: "name" },
       ],
     });

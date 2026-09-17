@@ -2,6 +2,22 @@ import moment from "moment";
 import Department from "../models/Department.js";
 import Employee from "../models/Employee.js";
 import Leave from "../models/Leave.js";
+import Salary from "../models/Salary.js";
+
+const departmentLabel = (employee) => {
+  const departments =
+    Array.isArray(employee.departments) && employee.departments.length
+      ? employee.departments
+      : employee.department
+      ? [employee.department]
+      : [];
+
+  const names = departments
+    .map((dep) => dep?.dep_name)
+    .filter(Boolean);
+
+  return names.length ? names.join(", ") : "-";
+};
 
 const getSummary = async (req, res) => {
   try {
@@ -62,4 +78,60 @@ const getSummary = async (req, res) => {
   }
 };
 
-export { getSummary };
+const getEmployeeSummary = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ userId: req.user._id })
+      .populate("department")
+      .populate("departments")
+      .populate("userId", "name");
+
+    if (!employee) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Employee not found" });
+    }
+
+    const leaves = await Leave.find({ employeeId: employee._id }).select(
+      "status"
+    );
+
+    const leaveSummary = {
+      appliedFor: leaves.length,
+      approved: leaves.filter((leave) => leave.status === "Approved").length,
+      pending: leaves.filter((leave) => leave.status === "Pending").length,
+      rejected: leaves.filter((leave) => leave.status === "Rejected").length,
+    };
+
+    const latestSalary = await Salary.findOne({ employeeId: employee._id })
+      .sort({ payDate: -1 })
+      .select("netSalary payDate basicSalary");
+
+    return res.status(200).json({
+      success: true,
+      employee: {
+        name: employee.userId?.name || req.user.name,
+        designation: employee.designation || "-",
+        employeeType: employee.employeeType || "-",
+        department: departmentLabel(employee),
+        annualLeave: employee.annualLeave || 0,
+        casualLeave: employee.casualLeave || 0,
+        medicalLeave: employee.medicalLeave || 0,
+        maternityLeave: employee.maternityLeave || 0,
+      },
+      leaveSummary,
+      latestSalary: latestSalary
+        ? {
+            netSalary: latestSalary.netSalary,
+            payDate: latestSalary.payDate,
+            basicSalary: latestSalary.basicSalary,
+          }
+        : null,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, error: "employee dashboard summary server error" });
+  }
+};
+
+export { getSummary, getEmployeeSummary };

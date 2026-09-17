@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
-import { FolderOpen, Loader2 } from "lucide-react";
-import React, { useState } from "react";
-import Loading from "./Loading";
+import { FolderOpen } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { TableSkeletonRows } from "./Skeleton";
 
 export const Table = ({
   headings = [],
@@ -12,36 +12,21 @@ export const Table = ({
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const dataPerPage = 10;
+  const dataSignature = Array.isArray(data)
+    ? data.map((item) => item?._id ?? "").join("|")
+    : "";
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dataSignature]);
 
   const indexOfLastData = currentPage * dataPerPage;
   const indexOfFirstData = indexOfLastData - dataPerPage;
   const currentData = data.slice(indexOfFirstData, indexOfLastData);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Generate rows for loading state
-  const renderRows = () => {
-    return Array()
-      .fill(0)
-      .map((_, index) => (
-        <tr key={index} className="animate-pulse">
-          {Array(headings.length)
-            .fill(0)
-            .map((_, cellIndex) => (
-              <td
-                key={`${index}-${cellIndex}`}
-                className="px-6 py-4 whitespace-nowrap"
-              >
-                <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-              </td>
-            ))}
-        </tr>
-      ));
-  };
-
   return (
     <div className="overflow-x-auto relative">
-      {isLoading && data.length > 0 && <Loading />}
-
       <table className="min-w-full divide-y divide-gray-700">
         <thead>
           <tr>
@@ -56,17 +41,18 @@ export const Table = ({
           </tr>
         </thead>
 
-        {isLoading && data.length === 0 ? (
-          <tbody className="divide-y divide-gray-700">{renderRows()}</tbody>
+        {isLoading ? (
+          <tbody className="divide-y divide-gray-700">
+            <TableSkeletonRows columns={headings.length} rows={8} />
+          </tbody>
         ) : data.length > 0 ? (
           <tbody className="divide-y divide-gray-700">
             {currentData.map((item, index) =>
               renderRow ? (
                 <motion.tr
                   key={item._id || index}
-                  initial={{ opacity: 0 }}
+                  initial={false}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
                 > 
                   {isSerialNo && 
                     <td className="px-6 py-4 whitespace-nowrap text-white">
@@ -94,6 +80,7 @@ export const Table = ({
           </tbody>
         )}
       </table>
+      {!isLoading && (
       <div className="flex justify-between items-center mt-4">
         <div className="text-sm text-gray-300">
           {indexOfFirstData + 1} to {Math.min(indexOfLastData, data.length)} of{" "}
@@ -118,6 +105,7 @@ export const Table = ({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

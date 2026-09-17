@@ -3,15 +3,24 @@ import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams } from "react-router-dom";
 import { employeeStore } from "../../stores/employee.store";
-import Loading from "../common/Loading";
+import { authStore } from "../../stores/auth.store";
 import Navbar from "../layout/Navbar";
+import { DetailSkeleton, Skeleton } from "../common/Skeleton";
+import { departmentLabel } from "../../utils/employeeDepartments";
 import moment from "moment";
-import { toJS } from "mobx";
+import ProfilePhoto from "./ProfilePhoto";
 
 const ViewEmployee = observer(() => {
   const { id } = useParams();
   const { employee, fetchEmployee, phones } = employeeStore;
-  const baseURL = import.meta.env.VITE_API_URL;
+  const { user } = authStore;
+  const isCurrentEmployee =
+    employee &&
+    (String(employee._id) === String(id) ||
+      String(employee.userId?._id) === String(id));
+  const canUpdatePhoto =
+    user?.role === "employee" &&
+    String(employee?.userId?._id) === String(user?._id);
 
   useEffect(() => {
     fetchEmployee(id);
@@ -19,31 +28,34 @@ const ViewEmployee = observer(() => {
 
   return (
     <>
-      {employee ? (
+      {isCurrentEmployee ? (
         <div className="flex-1 overflow-auto relative z-10">
           <Navbar title="Employee Details" />
 
           <main className="max-w-4xl mx-auto py-6 px-4 lg:px-8">
             <motion.div
               className="bg-gray-800 bg-opacity-50 backdrop-blur-md shadow-lg rounded-xl p-6 border border-gray-700"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="relative aspect-square w-40 sm:w-56 md:w-72 rounded-full overflow-hidden border justify-self-center">
-                  <img
-                    src={`${baseURL}/${employee.userId.profileImage}`}
-                    alt={employee.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                <ProfilePhoto
+                  employee={employee}
+                  canUpdate={canUpdatePhoto}
+                />
                 {/* Employee Details */}
                 <div className="text-gray-300 space-y-5">
                   <div className="grid grid-cols-2 gap-12">
                     <span className="text-gray-200">Name</span>
                     <span className="text-gray-200">
                       {employee.userId.name}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-12">
+                    <span className="text-gray-200">Email</span>
+                    <span className="text-gray-200 break-all">
+                      {employee.userId.email}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-12">
@@ -108,9 +120,9 @@ const ViewEmployee = observer(() => {
             </motion.div>
             <motion.div
               className="bg-gray-800 bg-opacity-50 backdrop-blur-md shadow-lg rounded-xl p-6 border border-gray-700 mt-5"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Left Side - Work Information */}
@@ -150,7 +162,7 @@ const ViewEmployee = observer(() => {
                   <div className="grid grid-cols-2 gap-12">
                     <span className="text-gray-200">Department</span>
                     <span className="text-gray-200">
-                      {employee.department.dep_name}
+                      {departmentLabel(employee)}
                     </span>
                   </div>
                 </div>
@@ -200,8 +212,35 @@ const ViewEmployee = observer(() => {
           </main>
         </div>
       ) : (
-        <div>
-          <Loading />
+        <div className="flex-1 overflow-auto relative z-10">
+          <Navbar title="Employee Details" />
+          <main className="max-w-4xl mx-auto py-6 px-4 lg:px-8">
+            <div className="bg-gray-800 bg-opacity-50 backdrop-blur-md shadow-lg rounded-xl p-6 border border-gray-700">
+              <DetailSkeleton />
+            </div>
+            <div className="bg-gray-800 bg-opacity-50 backdrop-blur-md shadow-lg rounded-xl p-6 border border-gray-700 mt-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-5">
+                  <Skeleton className="h-7 w-48" />
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="grid grid-cols-2 gap-12">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-5">
+                  <Skeleton className="h-7 w-40" />
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="grid grid-cols-2 gap-12">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
       )}
     </>

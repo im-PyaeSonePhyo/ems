@@ -7,8 +7,8 @@ import { ActionButton, SubmitLink } from "../common/Button";
 import { useNavigate } from "react-router-dom";
 import { departmentStore } from "../../stores/department.store";
 import ConfirmDeleteModal from "../common/ConfirmDeleteModal";
-import { toast } from "react-toastify";
 import { DEPARTMENT_TABLE_HEADER } from "../constants/Constants";
+import { Users } from "lucide-react";
 
 const DepartmentList = observer(() => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,17 +32,29 @@ const DepartmentList = observer(() => {
     setShowModal(true);
   };
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (!selectedDepartment) return;
-    if (selectedDepartment) {
-      const success = deleteDepartment(selectedDepartment._id);
-      if (success) {
-        fetchDepartments();
-        setShowModal(false);
-        setSelectedDepartment(null);
-      }
+    const success = await deleteDepartment(selectedDepartment._id);
+    if (success) {
+      setShowModal(false);
+      setSelectedDepartment(null);
     }
   };
+
+  const handleViewEmployees = () => {
+    const departmentName = selectedDepartment?.dep_name;
+    setShowModal(false);
+    setSelectedDepartment(null);
+    navigate("../employees", {
+      state: { departmentFilter: departmentName },
+    });
+  };
+
+  const employeeCount = selectedDepartment?.employeeCount ?? 0;
+  const hasEmployees = employeeCount > 0;
+  const employeeLabel =
+    employeeCount === 1 ? "assigned employee" : "assigned employees";
+  const departmentName = selectedDepartment?.dep_name || "this department";
 
   return (
     <PageLayout title="Department List" maxWidth={"max-w-6xl"}>
@@ -53,7 +65,7 @@ const DepartmentList = observer(() => {
           value={searchTerm}
           isLoading={loading}
         />
-        <SubmitLink urlLink="../add-department" name="Add New Department" />
+        <SubmitLink urlLink="../add-department" name="Add Department" />
       </div>
       <Table
         headings={DEPARTMENT_TABLE_HEADER}
@@ -81,9 +93,43 @@ const DepartmentList = observer(() => {
 
       <ConfirmDeleteModal
         show={showModal}
-        onClose={() => setShowModal(false)}
+        variant={hasEmployees ? "blocked" : "confirm"}
+        entityLabel="Department"
+        title={
+          hasEmployees ? "Cannot Delete Department" : "Delete Department?"
+        }
+        description={
+          hasEmployees ? (
+            <>
+              <span className="font-semibold text-white">{departmentName}</span>{" "}
+              has{" "}
+              <span className="font-semibold text-white">
+                {employeeCount} {employeeLabel}
+              </span>
+              . Departments with assigned employees cannot be deleted.
+            </>
+          ) : (
+            <>
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-white">{departmentName}</span>
+              ? This department has no assigned employees and can be removed.
+            </>
+          )
+        }
+        hint={
+          hasEmployees
+            ? "Move these employees to another department first, then try again."
+            : "This cannot be undone."
+        }
+        confirmLabel="Delete Department"
+        actionLabel="View Employees"
+        actionIcon={Users}
+        onAction={handleViewEmployees}
         onConfirm={handleDeleteConfirmed}
-        itemName={selectedDepartment?.dep_name}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedDepartment(null);
+        }}
       />
     </PageLayout>
   );

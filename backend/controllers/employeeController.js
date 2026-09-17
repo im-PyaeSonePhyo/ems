@@ -5,13 +5,31 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
+import { parseIdList } from "../utils/parseIds.js";
+import { uploadsDir } from "../utils/paths.js";
+import { isAdmin, isSelf, forbidden } from "../utils/access.js";
+import { isStrongPassword, PASSWORD_HINT } from "../utils/password.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|bmp)$/i;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-fs.mkdirSync(uploadsDir, { recursive: true });
+const isImageUpload = (file) => {
+  const extOk = IMAGE_EXTENSIONS.test(file.originalname || "");
+  const mime = file.mimetype || "";
+  const mimeOk = !mime || mime.startsWith("image/");
+  return extOk && mimeOk;
+};
+
+const removeUploadedFile = (file) => {
+  if (!file?.path) return;
+  try {
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+  } catch {
+    // Ignore cleanup failures for rejected uploads
+  }
+};
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -22,10 +40,55 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (isImageUpload(file)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
+const uploadImage = (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || "Only image files are allowed",
+      });
+    }
+    next();
+  });
+};
+
+const validateEmailFormat = (email) => EMAIL_REGEX.test(String(email || "").trim());
+
+const deleteStoredProfileImage = (filename) => {
+  if (!filename) return;
+  const imagePath = path.join(uploadsDir, filename);
+  if (fs.existsSync(imagePath)) {
+    fs.unlinkSync(imagePath);
+  }
+};
+
+const canUpdateOwnProfileImage = (reqUser, targetUser) =>
+  reqUser?.role === "employee" &&
+  targetUser?._id &&
+  String(reqUser._id) === String(targetUser._id);
 
 const addEmployee = async (req, res) => {
   try {
+    if (req.user?.role !== "admin") {
+      removeUploadedFile(req.file);
+      return res.status(403).json({
+        success: false,
+        error: "Only admins can create employees",
+      });
+    }
+
     let {
       name,
       email,
@@ -39,6 +102,7 @@ const addEmployee = async (req, res) => {
       maritalStatus,
       designation,
       department,
+      departments,
       salary,
       annualLeave,
       casualLeave,
@@ -47,7 +111,6 @@ const addEmployee = async (req, res) => {
       employeeType,
       duration,
       password,
-      role,
       phones // Array of phone objects: [{type, number, note}]
     } = req.body;
     // Parse phones if sent as JSON string (FormData)
@@ -59,11 +122,31 @@ const addEmployee = async (req, res) => {
       }
     }
 
-    const user = await User.findOne({ email });
-    if (user) {
+    const departmentIds = parseIdList(departments).length
+      ? parseIdList(departments)
+      : parseIdList(department);
+
+    if (!departmentIds.length) {
+      removeUploadedFile(req.file);
+      return res.status(400).json({
+        success: false,
+        error: "Please select at least one department",
+      });
+    }
+
+    if (!validateEmailFormat(email)) {
+      removeUploadedFile(req.file);
       return res
         .status(400)
-        .json({ success: false, error: "user already registered in employee" });
+        .json({ success: false, error: "Please enter a valid email address" });
+    }
+
+    const user = await User.findOne({ email: String(email).trim() });
+    if (user) {
+      removeUploadedFile(req.file);
+      return res
+        .status(400)
+        .json({ success: false, error: "This email is already registered" });
     }
 
     const startDuration = new Date();
@@ -72,7 +155,7 @@ const addEmployee = async (req, res) => {
 
     if (durationType === 0) {
       endDuration = new Date(startDuration);
-      endDuration = startDuration.setFullYear(startDuration.getFullYear() + 10);
+      endDuration.setFullYear(endDuration.getFullYear() + 10);
     } else {
       endDuration = new Date(
         startDuration.getFullYear(),
@@ -81,12 +164,10 @@ const addEmployee = async (req, res) => {
       );
     }
 
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).+$/;
-
-    if (!passwordRegex.test(password)) {
+    if (!isStrongPassword(password)) {
+      removeUploadedFile(req.file);
       return res.status(400).json({
-        error:
-          "Password must contain at least one uppercase letter and one special character.",
+        error: PASSWORD_HINT,
       });
     }
 
@@ -99,7 +180,7 @@ const addEmployee = async (req, res) => {
       current_address,
       permanent_address,
       password: hashPassword,
-      role,
+      role: "employee",
       profileImage: req.file ? req.file.filename : "",
     });
     const savedUser = await newUser.save();
@@ -125,7 +206,8 @@ const addEmployee = async (req, res) => {
       gender,
       maritalStatus,
       designation,
-      department,
+      department: departmentIds[0],
+      departments: departmentIds,
       salary,
       annualLeave,
       casualLeave,
@@ -142,6 +224,7 @@ const addEmployee = async (req, res) => {
     return res.status(200).json({ success: true, message: "employee created" });
   } catch (error) {
     console.log(error);
+    removeUploadedFile(req.file);
     return res
       .status(500)
       .json({ success: false, error: "server error in adding employee" });
@@ -152,7 +235,8 @@ const getEmployees = async (req, res) => {
   try {
     const employees = await Employee.find()
       .populate("userId", { password: 0 })
-      .populate("department");
+      .populate("department")
+      .populate("departments");
     return res.status(200).json({ success: true, employees });
   } catch (error) {
     return res
@@ -167,11 +251,22 @@ const getEmployee = async (req, res) => {
     let employee;
     employee = await Employee.findById({ _id: id })
       .populate("userId", { password: 0 })
-      .populate("department");
+      .populate("department")
+      .populate("departments");
     if (!employee) {
       employee = await Employee.findOne({ userId: id })
         .populate("userId", { password: 0 })
-        .populate("department");
+        .populate("department")
+        .populate("departments");
+    }
+    if (!employee) {
+      return res.status(404).json({ success: false, error: "employee not found" });
+    }
+    if (
+      !isAdmin(req) &&
+      !isSelf(req, employee.userId?._id || employee.userId)
+    ) {
+      return forbidden(res, "You can only view your own profile");
     }
     return res.status(200).json({ success: true, employee });
   } catch (error) {
@@ -197,6 +292,7 @@ const updateEmployee = async (req, res) => {
       gender,
       designation,
       department,
+      departments,
       salary,
       annualLeave,
       casualLeave,
@@ -215,8 +311,21 @@ const updateEmployee = async (req, res) => {
       }
     }
 
+    const departmentIds = parseIdList(departments).length
+      ? parseIdList(departments)
+      : parseIdList(department);
+
+    if (!departmentIds.length) {
+      removeUploadedFile(req.file);
+      return res.status(400).json({
+        success: false,
+        error: "Please select at least one department",
+      });
+    }
+
     const employee = await Employee.findById({ _id: id });
     if (!employee) {
+      removeUploadedFile(req.file);
       return res
         .status(404)
         .json({ success: false, error: "employee not found" });
@@ -224,18 +333,39 @@ const updateEmployee = async (req, res) => {
 
     const user = await User.findById({ _id: employee.userId });
     if (!user) {
+      removeUploadedFile(req.file);
       return res.status(404).json({ success: false, error: "user not found" });
+    }
+
+    if (email && !validateEmailFormat(email)) {
+      removeUploadedFile(req.file);
+      return res
+        .status(400)
+        .json({ success: false, error: "Please enter a valid email address" });
+    }
+
+    if (email) {
+      const existingUser = await User.findOne({
+        email: email.trim(),
+        _id: { $ne: user._id },
+      });
+      if (existingUser) {
+        removeUploadedFile(req.file);
+        return res.status(400).json({
+          success: false,
+          error: "This email is already registered",
+        });
+      }
     }
 
     const updatedUserData = { name, email, nrc, current_address, permanent_address };
     if (req.file) {
-      if (user.profileImage) {
-        const oldImagePath = path.join(__dirname, "..", "public", "uploads", user.profileImage);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
+      if (canUpdateOwnProfileImage(req.user, user)) {
+        deleteStoredProfileImage(user.profileImage);
+        updatedUserData.profileImage = req.file.filename;
+      } else {
+        removeUploadedFile(req.file);
       }
-      updatedUserData.profileImage = req.file.filename;
     }
 
     const updatedAt = new Date();
@@ -243,7 +373,7 @@ const updateEmployee = async (req, res) => {
     let endDuration;
     if (Number(duration) === 0) {
       endDuration = new Date(startDuration);
-      endDuration = startDuration.setFullYear(startDuration.getFullYear() + 10);
+      endDuration.setFullYear(endDuration.getFullYear() + 10);
     } else {
       endDuration = new Date(
         startDuration.getFullYear(),
@@ -290,7 +420,8 @@ const updateEmployee = async (req, res) => {
       maritalStatus,
       designation,
       salary,
-      department,
+      department: departmentIds[0],
+      departments: departmentIds,
       dob,
       gender,
       annualLeave,
@@ -308,16 +439,60 @@ const updateEmployee = async (req, res) => {
     return res.status(200).json({ success: true, message: "employee updated" });
   } catch (error) {
     console.log(error);
+    removeUploadedFile(req.file);
     return res
       .status(500)
       .json({ success: false, error: "update employees server error" });
   }
 };
 
+const updateProfileImage = async (req, res) => {
+  try {
+    if (req.user?.role !== "employee") {
+      removeUploadedFile(req.file);
+      return res.status(403).json({
+        success: false,
+        error: "Admins cannot update profile photos",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "Please choose an image",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      removeUploadedFile(req.file);
+      return res.status(404).json({ success: false, error: "user not found" });
+    }
+
+    deleteStoredProfileImage(user.profileImage);
+    user.profileImage = req.file.filename;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo updated",
+      profileImage: user.profileImage,
+    });
+  } catch (error) {
+    removeUploadedFile(req.file);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to update profile photo",
+    });
+  }
+};
+
 const fetchEmployeesByDepId = async (req, res) => {
   const { id } = req.params;
   try {
-    const employees = await Employee.find({ department: id });
+    const employees = await Employee.find({
+      $or: [{ department: id }, { departments: id }],
+    });
     return res.status(200).json({ success: true, employees });
   } catch (error) {
     return res
@@ -359,9 +534,11 @@ const deleteEmployee = async (req, res) => {
 export {
   addEmployee,
   upload,
+  uploadImage,
   getEmployees,
   getEmployee,
   updateEmployee,
+  updateProfileImage,
   fetchEmployeesByDepId,
   deleteEmployee,
 };

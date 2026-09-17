@@ -3,6 +3,7 @@ import api from "../utils/axios";
 import { employeeStore } from "./employee.store";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import { SALARY_INPUT_FIELDS } from "../components/constants/Constants";
 
 class SalaryStore {
   // Salary data
@@ -17,13 +18,58 @@ class SalaryStore {
   formData = {};
   salaryCollections = [];
   salariesByPayDate = [];
+  originalSalaryData = null;
 
   // Status
   loading = false;
+  saving = false;
   error = null;
 
   constructor() {
     makeAutoObservable(this);
+  }
+
+  snapshotSalaryUpdate = () => {
+    const employees = {};
+    Object.entries(this.formData).forEach(([id, row]) => {
+      if (id === "employeeId" || !row || typeof row !== "object") return;
+      employees[id] = {};
+      SALARY_INPUT_FIELDS.forEach((field) => {
+        employees[id][field] = Number(row[field] || 0);
+      });
+    });
+
+    return {
+      kumoCareAllowance: Number(this.defaultAllowances.kumoCareAllowance || 0),
+      homageDeduction: Number(this.defaultAllowances.homageDeduction || 0),
+      employees,
+    };
+  };
+
+  get hasSalaryChanges() {
+    if (!this.originalSalaryData) return false;
+
+    const current = this.snapshotSalaryUpdate();
+    const original = this.originalSalaryData;
+    if (current.kumoCareAllowance !== original.kumoCareAllowance) return true;
+    if (current.homageDeduction !== original.homageDeduction) return true;
+
+    const ids = new Set([
+      ...Object.keys(current.employees),
+      ...Object.keys(original.employees),
+    ]);
+
+    for (const id of ids) {
+      const currentRow = current.employees[id] || {};
+      const originalRow = original.employees[id] || {};
+      for (const field of SALARY_INPUT_FIELDS) {
+        if (Number(currentRow[field] || 0) !== Number(originalRow[field] || 0)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   handleDefaultChange = (field, value) => {
@@ -46,6 +92,8 @@ class SalaryStore {
 
   resetForm = async () => {
     this.formData = {};
+    this.originalSalaryData = null;
+    this.saving = false;
     this.defaultAllowances = {
       kumoCareAllowance: 0,
       homageDeduction: 0,
@@ -55,8 +103,31 @@ class SalaryStore {
 
   handleSubmit = (navigate, payDate) => async (e) => {
     e.preventDefault();
+    if (this.saving) return;
 
     const isEdit = Boolean(payDate); // Explicitly use payDate
+
+    if (isEdit && !this.hasSalaryChanges) {
+      toast.info("No changes to update.");
+      return;
+    }
+
+    if (!isEdit) {
+      const selectedDate = dayjs(this.defaultAllowances.payDate).format(
+        "YYYY-MM-DD"
+      );
+      const alreadyExists = this.salaryCollections.some(
+        (collection) => collection._id === selectedDate
+      );
+      if (alreadyExists) {
+        toast.error(
+          "Salary for this pay date already exists. Please edit the existing record."
+        );
+        return;
+      }
+    }
+
+    this.saving = true;
 
     const salariesToSend = employeeStore.employeeList.map((emp) => {
       const empSalary = this.formData[emp._id] || {};
@@ -69,7 +140,6 @@ class SalaryStore {
         absentDeduction: empSalary.absentDeduction || 0,
         yearEndBonus: empSalary.yearEndBonus || 0,
         birthdayBonus: empSalary.birthdayBonus || 0,
-        sgdAllowance: empSalary.sgdAllowance || 0,
         kumoCareAllowance: this.defaultAllowances.kumoCareAllowance,
         homageDeduction: this.defaultAllowances.homageDeduction,
         payDate: this.defaultAllowances.payDate,
@@ -93,12 +163,21 @@ class SalaryStore {
             ? "Salaries updated successfully!"
             : "Salaries added successfully!"
         );
-        this.resetForm();
         navigate("../salary/collections");
+        return;
       }
+
+      runInAction(() => {
+        this.saving = false;
+      });
     } catch (err) {
-      toast.error("Failed to save salaries.");
+      toast.error(
+        err.response?.data?.error || "Failed to save salaries."
+      );
       console.error(err);
+      runInAction(() => {
+        this.saving = false;
+      });
     }
   };
 
@@ -171,6 +250,7 @@ class SalaryStore {
     this.error = null;
     this.salariesByPayDate = [];
     this.formData = {};
+    this.originalSalaryData = null;
 
     try {
       const token = localStorage.getItem("token");
@@ -196,6 +276,7 @@ class SalaryStore {
 
           // Also set default payDate to disable in form
           this.defaultAllowances.payDate = new Date(payDate);
+          this.originalSalaryData = this.snapshotSalaryUpdate();
         } else {
           this.error =
             response.data.error || "Failed to fetch salaries by pay date";

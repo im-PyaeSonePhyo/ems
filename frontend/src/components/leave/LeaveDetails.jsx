@@ -4,14 +4,14 @@ import PageLayout from "../layout/PageLayout";
 import { leaveStore } from "../../stores/leave.store";
 import { useNavigate, useParams } from "react-router-dom";
 import { ActionButton } from "../common/Button";
-import Loading from "../common/Loading";
+import { DetailSkeleton } from "../common/Skeleton";
+import { departmentLabel } from "../../utils/employeeDepartments";
 import { employeeStore } from "../../stores/employee.store";
+import AuthImage from "../common/AuthImage";
 
 const LeaveDetails = observer(() => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const baseURL = import.meta.env.VITE_API_URL;
-
   const { leave, loading, changeStatus, fetchLeave } = leaveStore;
   const { fetchEmployee, employee } = employeeStore;
 
@@ -48,7 +48,7 @@ const LeaveDetails = observer(() => {
     },
     {
       label: "Department:",
-      value: employee?.department?.dep_name,
+      value: departmentLabel(employee),
     },
     {
       label: "Start Date:",
@@ -64,11 +64,11 @@ const LeaveDetails = observer(() => {
 
   return (
     <PageLayout title={"Leave Details"} maxWidth={"max-w-4xl"}>
-      {!loading ? (
+      {!loading && leave?._id ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="relative w-72 h-72 rounded-full overflow-hidden border">
-            <img
-              src={`${baseURL}/${leave?.employeeId?.userId?.profileImage}`}
+            <AuthImage
+              filename={leave?.employeeId?.userId?.profileImage}
               alt={leave?.employeeId?.userId?.name}
               className="w-full h-full object-cover"
             />
@@ -126,9 +126,9 @@ const LeaveDetails = observer(() => {
             </div>
           </div>
         </div>
-      ) : 
-        <Loading/>
-      }
+      ) : (
+        <DetailSkeleton />
+      )}
     </PageLayout>
   );
 });

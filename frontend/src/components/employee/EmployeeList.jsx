@@ -4,9 +4,11 @@ import { observer } from "mobx-react-lite";
 import PageLayout from "../layout/PageLayout";
 import { SearchInput } from "../common/Input";
 import { ActionButton, SubmitLink } from "../common/Button";
+import { departmentLabel } from "../../utils/employeeDepartments";
+import AuthImage from "../common/AuthImage";
 import { EMPLOYEE_TABLE_HEADER } from "../constants/Constants";
 import { employeeStore } from "../../stores/employee.store";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ConfirmDeleteModal from "../common/ConfirmDeleteModal";
 import { toast } from "react-toastify";
 
@@ -24,11 +26,15 @@ const EmployeeList = observer(() => {
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [searchValue, setSearchedValue] = useState(null);
+  const [searchValue, setSearchedValue] = useState("");
   const navigate = useNavigate();
-  const baseURL = import.meta.env.VITE_API_URL;
+  const location = useLocation();
 
   useEffect(() => {
+    const departmentFilter = location.state?.departmentFilter;
+    if (departmentFilter) {
+      setSearchedValue(departmentFilter);
+    }
     if (showUniqueEmployee) {
       countEmployee();
     } else {
@@ -37,26 +43,25 @@ const EmployeeList = observer(() => {
   }, []);
 
   useEffect(() => {
-    if (employeeList) {
-      setFilteredEmployees(employeeList);
-    } else if (totalUpdateEmployee) {
-      setFilteredEmployees(totalUpdateEmployee);
+    const source = employeeList || [];
+    const query = (searchValue || "").toLowerCase();
+    if (!query) {
+      setFilteredEmployees(source);
+      return;
     }
-  }, [employeeList, totalUpdateEmployee]);
+    setFilteredEmployees(
+      source.filter(
+        (emp) =>
+          emp?.employeeId?.toLowerCase().includes(query) ||
+          emp?.userId?.name?.toLowerCase().includes(query) ||
+          departmentLabel(emp).toLowerCase().includes(query) ||
+          emp?.employeeType?.toLowerCase().includes(query)
+      )
+    );
+  }, [employeeList, totalUpdateEmployee, searchValue]);
 
   const handleFilter = (e) => {
-    const searchValue = e.target.value.toLowerCase();
     setSearchedValue(e.target.value);
-
-    const records = employeeList.filter(
-      (emp) =>
-        emp?.employeeId.toLowerCase().includes(searchValue) ||
-        emp?.userId?.name.toLowerCase().includes(searchValue) ||
-        emp?.department?.dep_name.toLowerCase().includes(searchValue) ||
-        emp?.employeeType.toLowerCase().includes(searchValue)
-    );
-
-    setFilteredEmployees(records);
   };
 
   // Sort filteredEmployees
@@ -95,7 +100,7 @@ const EmployeeList = observer(() => {
           handleChange={handleFilter}
           value={searchValue ?? ""}
         />
-        <SubmitLink urlLink={"../add-employee"} name={"Add New Employee"} />
+        <SubmitLink urlLink={"../add-employee"} name={"Add Employee"} />
       </div>
       <Table
         headings={EMPLOYEE_TABLE_HEADER}
@@ -111,14 +116,14 @@ const EmployeeList = observer(() => {
               {emp?.userId.name}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-              <img
-                src={`${baseURL}/${emp?.userId.profileImage}`}
-                style={{ width: "50px", height: "50px", borderRadius: "50%" }}
+              <AuthImage
+                filename={emp?.userId?.profileImage}
                 alt="Profile Image"
+                style={{ width: "50px", height: "50px", borderRadius: "50%" }}
               />
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-m text-gray-300">
-              {emp?.department.dep_name}
+            <td className="px-6 py-4 text-m text-gray-300">
+              {departmentLabel(emp)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-m text-gray-300">
               {emp?.employeeType}
@@ -157,9 +162,24 @@ const EmployeeList = observer(() => {
       />
       <ConfirmDeleteModal
         show={showModal}
-        onClose={() => setShowModal(false)}
+        entityLabel="Employee"
+        title="Delete Employee?"
+        description={
+          <>
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-white">
+              {selectedEmployee?.userId?.name || "this employee"}
+            </span>
+            ?
+          </>
+        }
+        hint="This cannot be undone."
+        confirmLabel="Delete Employee"
+        onClose={() => {
+          setShowModal(false);
+          setSelectedEmployee(null);
+        }}
         onConfirm={handleDeleteConfirmed}
-        itemName={selectedEmployee?.userId?.name}
       />
     </PageLayout>
   );

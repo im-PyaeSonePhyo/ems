@@ -29,13 +29,13 @@ const EmployeeSidebar = observer(() => {
     {
       name: "Leaves",
       icon: FaRegCalendarAlt,
-      color: "oklch(69.6% 0.17 162.48)",
+      color: "oklch(62.3% 0.214 259.815)",
       href: `leaves/${user._id}`,
     },
     {
       name: "Salary",
       icon: FaMoneyCheck,
-      color: "oklch(62.3% 0.214 259.815)",
+      color: "oklch(72.3% 0.219 149.579)",
       href: `salary/employee/${user._id}`,
     },
     {

@@ -60,7 +60,7 @@ const AdminOverview = observer(() => {
               ? "-"
               : salaryCollections[0]?.totalNetSalary
           }
-          color="oklch(62.3% 0.214 259.815)"
+          color="oklch(72.3% 0.219 149.579)"
           isLoading={loading}
         />
         <span onClick={() => filteredByStatus("All")}>
@@ -72,7 +72,7 @@ const AdminOverview = observer(() => {
                 ? "-"
                 : overviewData.leaveSummary.appliedFor
             }
-            color="oklch(69.6% 0.17 162.48)"
+            color="oklch(62.3% 0.214 259.815)"
             to="leaves"
             isLoading={loading}
           />
@@ -86,7 +86,7 @@ const AdminOverview = observer(() => {
                 ? "-"
                 : overviewData.leaveSummary.approved
             }
-            color="oklch(69.6% 0.17 162.48)"
+            color="oklch(62.3% 0.214 259.815)"
             to="leaves"
             isLoading={loading}
           />

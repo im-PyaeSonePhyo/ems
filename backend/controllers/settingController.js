@@ -1,9 +1,11 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
+import { isStrongPassword, PASSWORD_HINT } from "../utils/password.js";
 
 const changePassword = async (req, res) => {
   try {
-    const { userId, oldPassword, newPassword } = req.body;
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user._id;
 
     const user = await User.findById({ _id: userId });
     if (!user) {
@@ -16,12 +18,9 @@ const changePassword = async (req, res) => {
         .json({ success: false, error: "Wrong Old Password" });
     }
 
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).+$/;
-
-    if (!passwordRegex.test(newPassword)) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
-        error:
-          "Password must contain at least one uppercase letter and one special character.",
+        error: PASSWORD_HINT,
       });
     }
 

@@ -8,6 +8,7 @@ import { CancelButton, SubmitButton } from "../common/Button";
 import PageLayout from "../layout/PageLayout";
 import { leaveStore } from "../../stores/leave.store";
 import { HALF_DAY_OPTIONS, LEAVE_TYPE_OPTIONS } from "../constants/Constants";
+import { FormSkeleton } from "../common/Skeleton";
 
 const LeaveForm = observer(() => {
   const { id } = useParams();
@@ -38,11 +39,16 @@ const LeaveForm = observer(() => {
     }
   }, [user, id]);
 
+  const showSkeleton = isEditMode && loading && !formData.leaveType;
+
   return (
     <PageLayout
       title={isEditMode ? "Edit Leave" : "Request Leave"}
       maxWidth={"max-w-3xl"}
     >
+      {showSkeleton ? (
+        <FormSkeleton fields={5} columns={1} />
+      ) : (
       <form>
         <Select
           name="leaveType"
@@ -59,24 +65,28 @@ const LeaveForm = observer(() => {
           <label className="text-sm font-medium text-gray-600 block mb-1">
             From Date
           </label>
-          <Datepicker
-            value={formData.startDate || new Date()}
-            onChange={(e) => handleDate("startDate", e)}
-            minDate={new Date()}
-            name="startDate"
-          />
+          <div className="custom-datepicker">
+            <Datepicker
+              value={formData.startDate || new Date()}
+              onChange={(e) => handleDate("startDate", e)}
+              minDate={new Date()}
+              name="startDate"
+            />
+          </div>
         </div>
 
         <div className="mt-3">
           <label className="text-sm font-medium text-gray-600 block mb-1">
             End Date
           </label>
-          <Datepicker
-            value={formData.endDate || new Date()}
-            onChange={(e) => handleDate("endDate", e)}
-            minDate={new Date()}
-            name="endDate"
-          />
+          <div className="custom-datepicker">
+            <Datepicker
+              value={formData.endDate || new Date()}
+              onChange={(e) => handleDate("endDate", e)}
+              minDate={new Date()}
+              name="endDate"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-2 mt-4 mb-3">
@@ -87,7 +97,7 @@ const LeaveForm = observer(() => {
             onChange={handleChange}
           />
           <label htmlFor="isHalfDay" className="text-gray-600">
-            I want to get half day
+            Half Day
           </label>
         </div>
 
@@ -112,6 +122,8 @@ const LeaveForm = observer(() => {
           isLoading={loading}
         />
       </form>
+      )}
+      {!showSkeleton && (
       <div className="text-end">
         <CancelButton
           loading={loading}
@@ -131,6 +143,7 @@ const LeaveForm = observer(() => {
           loading={loading}
         />
       </div>
+      )}
     </PageLayout>
   );
 });

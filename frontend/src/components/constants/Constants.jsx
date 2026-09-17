@@ -21,11 +21,6 @@ export const MARITAL_STATUS_OPTIONS = [
   { value: "married", label: "Married" },
 ];
 
-export const ROLE_OPTIONS = [
-  { value: "admin", label: "Admin" },
-  { value: "employee", label: "Employee" },
-];
-
 export const EMPLOYEE_TYPE = [
   { value: "Internship", label: "Internship" },
   { value: "Probation", label: "Probation" },
@@ -33,7 +28,8 @@ export const EMPLOYEE_TYPE = [
 ];
 
 export const CREATE_EMPLOYEE = "Employee created successfully!";
-export const UPDATE_EMPLOYEE = "Employee created successfully!";
+export const UPDATE_EMPLOYEE = "Employee updated successfully!";
+export const UPDATE_PROFILE_IMAGE = "Profile photo updated successfully!";
 
 // Department
 export const DEPARTMENT_TABLE_HEADER = ["Serial Number", "Name", "Actions"];
@@ -104,7 +100,6 @@ export const ADD_SALARY_HEADER = [
   "Employee ID",
   "Employee Name",
   "Basic Salary",
-  "Sgd Allowance",
   "Overtime",
   "Advance Salary",
   "Absent Deduction",
@@ -113,7 +108,6 @@ export const ADD_SALARY_HEADER = [
 ];
 
 export const SALARY_INPUT_FIELDS = [
-  "sgdAllowance",
   "overtime",
   "advanceSalary",
   "absentDeduction",

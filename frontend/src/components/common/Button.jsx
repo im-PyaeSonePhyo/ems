@@ -8,8 +8,8 @@ export const LoginButton = ({ name, isLoading = false, disabled = false }) => {
     <button
       type="submit"
       disabled={isLoading || disabled}
-      className={`w-full mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-2 rounded-lg transition-colors duration-200 relative ${
-        isLoading || disabled ? "opacity-70 cursor-not-allowed" : ""
+      className={`w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold py-3 px-2 rounded-lg transition-colors duration-200 relative ${
+        isLoading || disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       {isLoading ? (
@@ -32,15 +32,16 @@ export const SubmitButton = ({
   className,
   isLoading = false,
   disabled = false,
-  onClick
+  onClick,
+  type = "button",
 }) => {
   return (
     <button
-      type="submit"
+      type={type}
       onClick={onClick}
       disabled={isLoading || disabled}
       className={`mt-6 ${className} text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 relative ${
-        isLoading || disabled ? "opacity-70 cursor-not-allowed" : ""
+        isLoading || disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       {isLoading ? (
@@ -61,7 +62,7 @@ export const SubmitButton = ({
 export const SubmitLink = ({ urlLink, name, isLoading = false }) => {
   if (isLoading) {
     return (
-      <div className="bg-indigo-600 opacity-70 text-white font-semibold py-3 px-4 rounded-md transition duration-200 w-full sm:w-auto flex items-center justify-center">
+      <div className="bg-indigo-600 opacity-70 text-white text-base font-semibold py-3 px-4 rounded-md transition duration-200 w-full sm:w-auto flex items-center justify-center">
         <Loading size={20} />
       </div>
     );
@@ -70,7 +71,7 @@ export const SubmitLink = ({ urlLink, name, isLoading = false }) => {
   return (
     <Link
       to={urlLink}
-      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-md transition duration-200 w-full sm:w-auto flex items-center justify-center"
+      className="bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold py-3 px-4 rounded-md transition duration-200 w-full sm:w-auto flex items-center justify-center cursor-pointer"
     >
       {name}
     </Link>
@@ -90,7 +91,7 @@ export const ActionButton = ({
       onClick={onClick}
       disabled={isLoading || disabled}
       className={`px-4 py-2 text-white rounded-md shadow-md relative ${className} ${
-        isLoading || disabled ? "opacity-70 cursor-not-allowed" : ""
+        isLoading || disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       {isLoading ? (
@@ -119,7 +120,7 @@ export const CancelButton = ({
       type="cancel"
       disabled={isLoading || disabled}
       className={`px-4 py-2 text-white rounded-md shadow-md relative bg-gray-600 hover:bg-gray-700 ${
-        isLoading || disabled ? "opacity-70 cursor-not-allowed" : ""
+        isLoading || disabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       {isLoading ? (

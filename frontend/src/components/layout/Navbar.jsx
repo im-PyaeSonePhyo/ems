@@ -17,7 +17,7 @@ const Navbar = observer(({ title }) => {
           {title}
         </h1>
         <button
-          className="flex items-center text-red-600 hover:text-red-700 text-sm sm:text-base"
+          className="flex items-center text-red-600 hover:text-red-700 text-sm sm:text-base cursor-pointer"
           onClick={handleLogout}
         >
           Logout <LogOut size={18} className="ml-2 sm:ml-3" />

@@ -3,6 +3,18 @@
 @source "../.flowbite-react/class-list.json";
 @custom-variant dark (&:where(.dark, .dark *));
 
-.custom-datepicker input{
-    height: 48px !important;
+.custom-datepicker input {
+  height: 48px !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
+.custom-file-input {
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
+.custom-file-input::file-selector-button {
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
 }

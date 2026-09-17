@@ -43,7 +43,7 @@ const SalaryCollectionList = observer(() => {
   return (
     <PageLayout title="Salary List">
       <div className="flex justify-end items-center mb-6">
-        <SubmitLink urlLink="../salary/add" name="Add New Salary" />
+        <SubmitLink urlLink="../salary/add" name="Add Salary" />
       </div>
 
       <Table
@@ -81,16 +81,26 @@ const SalaryCollectionList = observer(() => {
 
       <ConfirmDeleteModal
         show={showModal}
+        entityLabel="Salary"
+        title="Delete Salary Records?"
+        description={
+          <>
+            Are you sure you want to delete salary records for{" "}
+            <span className="font-semibold text-white">
+              {selectedCollection
+                ? new Date(selectedCollection._id).toLocaleDateString()
+                : "this pay date"}
+            </span>
+            ?
+          </>
+        }
+        hint="All salary entries for this pay date will be removed. This cannot be undone."
+        confirmLabel="Delete Salary"
         onClose={() => {
           setShowModal(false);
           setSelectedCollection(null);
         }}
         onConfirm={handleDeleteConfirmed}
-        itemName={
-          selectedCollection
-            ? new Date(selectedCollection._id).toLocaleDateString()
-            : ''
-        }
       />
     </PageLayout>
   );

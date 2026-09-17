@@ -8,8 +8,7 @@ import { LoginButton } from "../components/common/Button";
 import { toast } from "react-toastify";
 
 const demoAccounts = [
-  { label: "Admin 1", email: "admin1@ems.com", password: "Admin@123" },
-  { label: "Admin 2", email: "admin2@ems.com", password: "Admin@123" },
+  { label: "Admin", email: "admin@ems.com", password: "Admin@123" },
   { label: "Employee", email: "htet@ems.com", password: "Admin@123" },
 ];
 
@@ -38,15 +37,7 @@ const Login = observer(() => {
         navigate("/employee-dashboard");
       }
     } catch (err) {
-      const errorMessage = (err.response?.data?.error || "Login failed").toLowerCase();
-
-      if (errorMessage.includes("password")) {
-        toast.error("Incorrect password.");
-      } else if (errorMessage.includes("not found")) {
-        toast.error("User not found.");
-      } else {
-        toast.error(err.response?.data?.error || "Login failed");
-      }
+      toast.error(err.response?.data?.error || "Login failed");
     }
   };
 

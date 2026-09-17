@@ -1,18 +1,8 @@
 import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
 import dayjs from "dayjs";
-
-const calculateDaysRequested = (startDate, endDate, halfDay = {}) => {
-  const start = dayjs(startDate);
-  const end = dayjs(endDate);
-  let days = end.diff(start, "day") + 1;
-
-  if (halfDay.type === "start" || halfDay.type === "end") {
-    days -= 0.5;
-  }
-
-  return days;
-};
+import { calculateDaysRequested } from "../utils/leaveDays.js";
+import { forbidden, getOwnEmployee, isAdmin } from "../utils/access.js";
 
 const leaveTypeMap = {
   "Annual Leave": "annualLeave",
@@ -24,7 +14,6 @@ const leaveTypeMap = {
 const addLeave = async (req, res) => {
   try {
     const {
-      userId,
       leaveType,
       startDate,
       endDate,
@@ -32,7 +21,7 @@ const addLeave = async (req, res) => {
       halfDay = { type: "none", session: "morning" },
     } = req.body;
 
-    const employee = await Employee.findOne({ userId });
+    const employee = await Employee.findOne({ userId: req.user._id });
     if (!employee) {
       return res
         .status(404)
@@ -99,6 +88,17 @@ const getLeave = async (req, res) => {
       }
       leaves = await Leave.find({ employeeId: employee._id });
     }
+
+    if (!isAdmin(req)) {
+      const own = await getOwnEmployee(req);
+      const ownEmployeeId = own?._id ? String(own._id) : "";
+      const requestedIsSelf =
+        String(req.user._id) === String(id) || ownEmployeeId === String(id);
+      if (!requestedIsSelf) {
+        return forbidden(res, "You can only view your own leave");
+      }
+    }
+
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
     return res
@@ -113,6 +113,7 @@ const getLeaves = async (req, res) => {
       path: "employeeId",
       populate: [
         { path: "department", select: "dep_name" },
+        { path: "departments", select: "dep_name" },
         { path: "userId", select: "name" },
       ],
     });
@@ -131,9 +132,21 @@ const getLeaveDetails = async (req, res) => {
       path: "employeeId",
       populate: [
         { path: "department", select: "dep_name" },
+        { path: "departments", select: "dep_name" },
         { path: "userId", select: "name , profileImage" },
       ],
     });
+    if (!leave) {
+      return res.status(404).json({ success: false, error: "Leave not found" });
+    }
+
+    if (!isAdmin(req)) {
+      const ownerId = leave.employeeId?.userId?._id || leave.employeeId?.userId;
+      if (String(ownerId) !== String(req.user._id)) {
+        return forbidden(res, "You can only view your own leave");
+      }
+    }
+
     return res.status(200).json({ success: true, leave });
   } catch (error) {
     return res
@@ -154,11 +167,21 @@ const updateLeave = async (req, res) => {
     } = req.body;
 
     const leave = await Leave.findById(id);
+    if (!leave) {
+      return res.status(404).json({ success: false, error: "Leave not found" });
+    }
 
-    if (leave.status == "Approved") {
+    if (!isAdmin(req)) {
+      const own = await getOwnEmployee(req);
+      if (!own || String(leave.employeeId) !== String(own._id)) {
+        return forbidden(res, "You can only update your own leave");
+      }
+    }
+
+    if (leave.status == "Approved" || leave.status == "Rejected") {
       return res.status(400).json({
         success: false,
-        error: "This leave cannot be updated because it has already been approved by admin.",
+        error: "This leave cannot be updated because it has already been processed.",
       });
     }
 
@@ -188,10 +211,21 @@ const deleteLeave = async (req, res) => {
     const { id } = req.params;
 
     const leave = await Leave.findById(id);
-    if (leave.status == "Approved") {
+    if (!leave) {
+      return res.status(404).json({ success: false, error: "Leave not found" });
+    }
+
+    if (!isAdmin(req)) {
+      const own = await getOwnEmployee(req);
+      if (!own || String(leave.employeeId) !== String(own._id)) {
+        return forbidden(res, "You can only delete your own leave");
+      }
+    }
+
+    if (leave.status == "Approved" || leave.status == "Rejected") {
       return res.status(400).json({
         success: false,
-        error: "This leave cannot be deleted because it has already been approved by admin.",
+        error: "This leave cannot be deleted because it has already been processed.",
       });
     }
 
@@ -232,15 +266,9 @@ const updateLeaveStatus = async (req, res) => {
     }
 
     leave.votes.push({ adminId, status });
+    leave.status = status;
 
-    const rejected = leave.votes.some((vote) => vote.status === "Rejected");
-    const approvedCount = leave.votes.filter((vote) => vote.status === "Approved").length;
-
-    if (rejected) {
-      leave.status = "Rejected";
-    } else if (approvedCount >= 2) {
-      leave.status = "Approved";
-
+    if (status === "Approved") {
       const employee = await Employee.findById(leave.employeeId);
       if (!employee) {
         return res.status(404).json({ success: false, error: "Employee not found" });

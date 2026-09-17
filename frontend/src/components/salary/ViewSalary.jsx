@@ -9,8 +9,22 @@ import { SALARY_HEADER } from "../constants/Constants";
 import { Download } from "lucide-react";
 import SalarySlip from "../salaryPaySlip/salaryPaySlip";
 import html2canvas from "html2canvas";
-import { toJS } from "mobx";
+const toSlug = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
+const salarySlipFileName = (item) => {
+  const employeeId = toSlug(item.employeeId?.employeeId) || "employee";
+  const name = toSlug(item.employeeId?.userId?.name);
+  const month = item.payDate
+    ? new Date(item.payDate).toISOString().slice(0, 7)
+    : "";
+
+  return [employeeId, name, month].filter(Boolean).join("-") + ".png";
+};
 
 const ViewSalary = observer(() => {
   const { id, payDate } = useParams();
@@ -28,34 +42,65 @@ const ViewSalary = observer(() => {
 
    const salaryData = payDate ? salariesByPayDate : salaries;
 
-   const handleDownload = async (item) => {
-  // Create a temporary container
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "-9999px";
-  document.body.appendChild(container);
+  const handleDownload = async (item) => {
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "0";
+    container.style.top = "0";
+    container.style.opacity = "0";
+    container.style.pointerEvents = "none";
+    container.style.zIndex = "-1";
+    document.body.appendChild(container);
 
-  // Render React component inside it
-  const tempRoot = document.createElement("div");
-  container.appendChild(tempRoot);
-
-  import("react-dom/client").then(({ createRoot }) => {
-    const root = createRoot(tempRoot);
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(container);
     root.render(<SalarySlip data={item} />);
 
-    setTimeout(async () => {
-      const canvas = await html2canvas(tempRoot);
-      const link = document.createElement("a");
-      link.download = `salary-slip-${item.employeeId?.employeeId}-${item.employeeId?.userId?.name}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const images = Array.from(container.querySelectorAll("img"));
+    await Promise.all(
+      images.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            })
+      )
+    );
 
-      // Cleanup
-      root.unmount();
-      document.body.removeChild(container);
-    }, 500); // Wait a moment to ensure rendering
-  });
-};
+    const slip = container.querySelector("#salary-slip") || container;
+    const canvas = await html2canvas(slip, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#F6F3ED",
+      onclone: (_doc, cloned) => {
+        const bar = cloned.querySelector("#net-pay-bar");
+        if (!bar) return;
+        bar.style.height = "auto";
+        bar.style.paddingTop = "12px";
+        bar.style.paddingBottom = "28px";
+        bar.style.paddingLeft = "28px";
+        bar.style.paddingRight = "28px";
+        bar.style.boxSizing = "border-box";
+        const logo = cloned.querySelector("#salary-slip img");
+        if (logo) {
+          logo.style.transform = "translateY(8px)";
+        }
+      },
+    });
+
+    const link = document.createElement("a");
+    link.download = salarySlipFileName(item);
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+
+    root.unmount();
+    document.body.removeChild(container);
+  };
 
 
   return (

@@ -12,6 +12,7 @@ import {
   ADD_SALARY_HEADER,
 } from "../constants/Constants";
 import { useNavigate, useParams } from "react-router-dom";
+import { TableSkeletonRows } from "../common/Skeleton";
 import Loading from "../common/Loading";
 import { FolderOpen } from "lucide-react";
 import { motion } from "framer-motion";
@@ -24,6 +25,7 @@ const SalaryForm = observer(() => {
 
   const {
     loading,
+    saving,
     formData,
     defaultAllowances,
     handleDefaultChange,
@@ -31,7 +33,9 @@ const SalaryForm = observer(() => {
     handleEmployeeSalaryChange,
     handleSubmit,
     fetchSalariesByPayDate,
+    fetchSalaryCollections,
     resetForm,
+    hasSalaryChanges,
   } = salaryStore;
 
   const { employeeList, fetchEmployees } = employeeStore;
@@ -43,7 +47,9 @@ const SalaryForm = observer(() => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   useEffect(() => {
+    salaryStore.saving = false;
     fetchEmployees();
+    fetchSalaryCollections();
     if (isEditMode) {
       fetchSalariesByPayDate(payDate);
     } else {
@@ -73,12 +79,14 @@ const SalaryForm = observer(() => {
             >
               Pay Date
             </label>
-            <Datepicker
-              value={defaultAllowances.payDate}
-              onChange={handlePayDateChange}
-              name="payDate"
-              disabled={isEditMode}
-            />
+            <div className="custom-datepicker">
+              <Datepicker
+                value={defaultAllowances.payDate}
+                onChange={handlePayDateChange}
+                name="payDate"
+                disabled={isEditMode}
+              />
+            </div>
           </div>
         </div>
 
@@ -100,14 +108,10 @@ const SalaryForm = observer(() => {
 
             <tbody className="divide-y divide-gray-700">
               {loading && employeeList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={ADD_SALARY_HEADER.length}
-                    className="text-center py-12 font-medium text-gray-400"
-                  >
-                    <Loading />
-                  </td>
-                </tr>
+                <TableSkeletonRows
+                  columns={ADD_SALARY_HEADER.length}
+                  rows={8}
+                />
               ) : employeeList.length > 0 ? (
                 currentData.map((item, index) => (
                   <motion.tr
@@ -180,6 +184,7 @@ const SalaryForm = observer(() => {
                 (_, i) => (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => paginate(i + 1)}
                     className={`px-3 py-1 rounded-md text-sm ${
                       currentPage === i + 1
@@ -198,7 +203,6 @@ const SalaryForm = observer(() => {
 
       <div className="text-end">
         <CancelButton
-          loading={loading}
           onClick={() => {
             resetForm();
             navigate(-1);
@@ -208,9 +212,15 @@ const SalaryForm = observer(() => {
           onClick={handleSubmit(navigate, payDate)}
           name={isEditMode ? "Update Salary" : "Add Salary"}
           className={"bg-indigo-600 hover:bg-indigo-700 ml-5"}
-          loading={loading}
+          disabled={saving || (isEditMode && !hasSalaryChanges)}
         />
       </div>
+      {saving && (
+        <Loading
+          fullScreen
+          text={isEditMode ? "Updating salaries..." : "Adding salaries..."}
+        />
+      )}
     </PageLayout>
   );
 });

@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/parseIds.test.js tests/leaveDays.test.js tests/password.test.js",
     "dev": "nodemon --env-file=.env index.js",
     "start": "node index.js"
   },
@@ -19,12 +19,16 @@
     "dayjs-plugin-utc": "^0.1.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
     "mongoose": "^8.9.0",
     "multer": "^1.4.5-lts.1",
-    "nodemon": "^3.1.9",
     "path": "^0.12.7",
     "utc": "^0.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }

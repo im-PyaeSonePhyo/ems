@@ -5,11 +5,11 @@ import { departmentStore } from "../../stores/department.store";
 import { useNavigate, useParams } from "react-router-dom";
 import { EMPLOYEE_TYPE, MARITAL_STATUS_OPTIONS } from "../constants/Constants";
 import { motion } from "framer-motion";
-import { Input, Select } from "../common/Input";
+import { Input, MultiSelect, Select } from "../common/Input";
 import PageLayout from "../layout/PageLayout";
 import { CancelButton, SubmitButton } from "../common/Button";
-import Loading from "../common/Loading";
-import { Plus, Trash2 } from "lucide-react";
+import { FormSkeleton } from "../common/Skeleton";
+import { CirclePlus, Plus, Trash2 } from "lucide-react";
 import { toJS } from "mobx";
 
 const UpdateEmployee = observer(() => {
@@ -18,12 +18,15 @@ const UpdateEmployee = observer(() => {
     updateData,
     fetchEmployee,
     handleUpdateChange,
+    handleUpdateDepartmentsChange,
     updateEmployee,
     handleUpdateDurationChange,
     handleUpdatePhoneChange,
     removeUpdatePhoneRow,
     addUpdatePhoneRow,
     errorMessage,
+    hasEmployeeChanges,
+    fetchEmployees,
   } = employeeStore;
   const { departments, fetchDepartments } = departmentStore;
   const navigate = useNavigate();
@@ -31,6 +34,7 @@ const UpdateEmployee = observer(() => {
 
   useEffect(() => {
     fetchDepartments();
+    fetchEmployees();
     fetchEmployee(id);
   }, [id]);
 
@@ -154,19 +158,19 @@ const UpdateEmployee = observer(() => {
                             }}
                           >
                             <Trash2
-                              size={25}
+                              size={24}
                               className="text-red-800 hover:text-red-900 transition"
                             />{" "}
                           </button>
                           {idx === updateData.phones.length - 1 && (
                             <button
                               type="button"
-                              className="bg-green-800 hover:bg-green-900 rounded-lg cursor-pointer"
+                              className="cursor-pointer"
                               onClick={addUpdatePhoneRow}
                             >
-                              <Plus
-                                size={25}
-                                className="text-white transition"
+                              <CirclePlus
+                                size={24}
+                                className="text-green-800 hover:text-green-900 transition"
                               />{" "}
                             </button>
                           )}
@@ -193,13 +197,12 @@ const UpdateEmployee = observer(() => {
                   required={true}
                   error={errorMessage?.designation}
                 />
-                <Select
-                  name={"department"}
+                <MultiSelect
+                  name={"departments"}
                   title={"Department"}
-                  valueCheck={updateData.department}
-                  // value={updateData.department}
+                  values={updateData.departments ?? []}
                   options={departmentOptions}
-                  handleChange={handleUpdateChange}
+                  handleChange={handleUpdateDepartmentsChange}
                   required={true}
                   error={errorMessage?.department}
                 />
@@ -291,15 +294,16 @@ const UpdateEmployee = observer(() => {
                 <SubmitButton
                   className="bg-indigo-600 hover:bg-indigo-700 ml-5"
                   name="Update Employee"
-                  onClick={updateEmployee(id, "updateEmp",navigate)}
+                  disabled={!hasEmployeeChanges}
+                  onClick={updateEmployee(id, "updateEmp", navigate)}
                 />
               </div>
           </div>
         </PageLayout>
       ) : (
-        <div>
-          <Loading />
-        </div>
+        <PageLayout title="Update Employee">
+          <FormSkeleton fields={12} columns={3} />
+        </PageLayout>
       )}
     </>
   );

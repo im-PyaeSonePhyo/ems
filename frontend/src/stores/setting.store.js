@@ -1,14 +1,12 @@
 // stores/SettingStore.js
 import { makeAutoObservable, runInAction } from "mobx";
 import api from "../utils/axios";
-import { employeeStore } from "./employee.store";
 
 class SettingStore {
   userId = "";
   oldPassword = "";
   newPassword = "";
   confirmPassword = "";
-  profileImage = "";
 
   loading = false;
   error = null;
@@ -72,7 +70,6 @@ class SettingStore {
   };
 
   resetForm() {
-    this.profileImage = "";
     this.oldPassword = "";
     this.newPassword = "";
     this.confirmPassword = "";

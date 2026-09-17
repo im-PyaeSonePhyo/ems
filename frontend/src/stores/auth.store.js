@@ -29,6 +29,8 @@ class AuthStore {
     const errors = {};
     if (!data.email || data.email.trim() === "") {
       errors.email = "Email is required!";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+      errors.email = "Please enter a valid email address!";
     }
     if (!data.password || data.password.trim() === "") {
       errors.password = "Password is required!";
